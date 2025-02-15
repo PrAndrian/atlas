@@ -13,7 +13,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useAuth, UserButton } from "@clerk/nextjs";
-import { Home, MessageCircleQuestion, Settings } from "lucide-react";
+import { useQuery } from "convex/react";
+import { Home, MessageCircleQuestion, Settings, Shield } from "lucide-react";
+import { api } from "../../convex/_generated/api";
 import { Skeleton } from "./ui/skeleton";
 
 const items = [
@@ -27,18 +29,25 @@ const items = [
     url: "/dashboard/ask",
     icon: MessageCircleQuestion,
   },
+  {
+    title: "Admin Dashboard",
+    url: "/admin",
+    icon: Shield,
+    adminOnly: true,
+  },
 ];
 
 const footerItems = [
   {
     title: "Settings",
-    url: "#settings",
+    url: "/settings",
     icon: Settings,
   },
 ];
 
 export function AppSidebar() {
   const auth = useAuth();
+  const isAdmin = useQuery(api.users.isAdmin);
 
   if (!auth) {
     return null;
@@ -50,7 +59,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem className="w-fit">
             <SidebarMenuButton asChild>
-              <button className="py-2 px-1 overflow-visible">
+              <button className="px-1 py-2 overflow-visible">
                 {auth.isLoaded ? (
                   <UserButton
                     showName
@@ -66,15 +75,8 @@ export function AppSidebar() {
                     }}
                   />
                 ) : (
-                  <Skeleton className="h-8 w-8 my-2 rounded-full" />
+                  <Skeleton className="w-8 h-8 my-2 rounded-full" />
                 )}
-                {/* <span className="text-sm truncate">
-                  {auth.isLoaded ? (
-                    auth.userId
-                  ) : (
-                    <Skeleton className="h-4 w-32" />
-                  )}
-                </span> */}
               </button>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -86,16 +88,18 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarGroupLabel>Dashbord</SidebarGroupLabel>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {items
+                .filter((item) => !item.adminOnly || isAdmin)
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <a href={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

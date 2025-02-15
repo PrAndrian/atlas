@@ -6,6 +6,7 @@ export default defineSchema({
     tokenIdentifier: v.string(),
     email: v.string(),
     solBalance: v.optional(v.number()),
+    isAdmin: v.optional(v.boolean()),
   }).index("by_token", ["tokenIdentifier"]),
   questions: defineTable({
     text: v.string(),

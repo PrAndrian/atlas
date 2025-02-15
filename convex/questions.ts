@@ -56,3 +56,32 @@ export const list = query({
     return await ctx.db.query("questions").collect();
   },
 });
+
+export const deleteQuestion = mutation({
+  args: {
+    questionId: v.id("questions"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    if (!user) throw new Error("User not found");
+
+    const question = await ctx.db.get(args.questionId);
+    if (!question) throw new Error("Question not found");
+
+    // Allow deletion if user is admin or the question creator
+    if (!user.isAdmin && question.userId !== user._id) {
+      throw new Error("Not authorized");
+    }
+
+    await ctx.db.delete(args.questionId);
+  },
+});

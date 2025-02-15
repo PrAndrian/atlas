@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
+import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -18,6 +19,9 @@ const Ask = () => {
   const [newQuestion, setNewQuestion] = useState<string>("");
 
   const questions = useQuery(api.questions.list);
+  const isAdmin = useQuery(api.users.isAdmin);
+  const deleteQuestion = useMutation(api.questions.deleteQuestion);
+  const userId = useQuery(api.users.getCurrentUserId);
 
   useEffect(() => {
     if (auth.isSignedIn && auth.isLoaded) storeUser();
@@ -35,10 +39,16 @@ const Ask = () => {
     await likeQuestion({ questionId });
   };
 
+  const handleDelete = async (questionId: Id<"questions">) => {
+    if (window.confirm("Are you sure you want to delete this question?")) {
+      await deleteQuestion({ questionId });
+    }
+  };
+
   return (
     <main className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Ask a Dumb Question</h1>
-      <form onSubmit={handleQuestionSubmit} className="mb-4 flex gap-2">
+      <h1 className="mb-4 text-2xl font-bold">Ask a Dumb Question</h1>
+      <form onSubmit={handleQuestionSubmit} className="flex gap-2 mb-4">
         <Input
           disabled={!auth.isLoaded}
           type="text"
@@ -58,10 +68,21 @@ const Ask = () => {
           : questions.map((question) => (
               <Card key={question._id}>
                 <CardHeader>
-                  <p className="font-bold">Question: {question.text}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold">Question: {question.text}</p>
+                    {(isAdmin || question.userId === userId) && (
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleDelete(question._id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <h3 className="font-semibold">Likes: {question.likes}</h3>
                     <Button onClick={() => handleLike(question._id)}>
                       Like
