@@ -11,7 +11,6 @@ const afterSignUrl = process.env.NEXT_PUBLIC_CLERK_REDIRECT_URL!;
 const convex = new ConvexReactClient(convexUrl);
 
 export function Providers({ children }: { children: ReactNode }) {
-  console.log(afterSignUrl);
   return (
     <ClerkProvider
       signInForceRedirectUrl={afterSignUrl}
