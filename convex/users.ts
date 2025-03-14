@@ -19,15 +19,10 @@ export const store = mutation({
       return user._id;
     }
 
-    // Get admin status from Clerk metadata
-    const isAdmin =
-      (userIdentity.privateMetadata as { isAdmin?: boolean })?.isAdmin === true;
-
     return await ctx.db.insert("users", {
       tokenIdentifier: userIdentity.tokenIdentifier,
       email: userIdentity.email!,
       lastLoginAt: new Date().toISOString(),
-      isAdmin,
     });
   },
 });
@@ -53,14 +48,9 @@ export const isAdmin = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return false;
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
-      .unique();
-
-    return user?.isAdmin ?? false;
+    // Check admin status directly from Clerk metadata instead of the database
+    const role = (identity.privateMetadata as { role?: string })?.role;
+    return role === "admin";
   },
 });
 
@@ -71,14 +61,9 @@ export const list = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
-      .unique();
-
-    if (!user?.isAdmin) throw new Error("Not authorized");
+    // Check admin status from Clerk metadata
+    const role = (identity.privateMetadata as { role?: string })?.role;
+    if (role !== "admin") throw new Error("Not authorized");
 
     return await ctx.db.query("users").collect();
   },

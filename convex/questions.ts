@@ -77,8 +77,12 @@ export const deleteQuestion = mutation({
     const question = await ctx.db.get(args.questionId);
     if (!question) throw new Error("Question not found");
 
+    // Check if the user is an admin using Clerk metadata
+    const role = (identity.privateMetadata as { role?: string })?.role;
+    const isAdmin = role === "admin";
+
     // Allow deletion if user is admin or the question creator
-    if (!user.isAdmin && question.userId !== user._id) {
+    if (!isAdmin && question.userId !== user._id) {
       throw new Error("Not authorized");
     }
 

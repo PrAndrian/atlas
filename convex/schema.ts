@@ -5,7 +5,6 @@ export default defineSchema({
   users: defineTable({
     tokenIdentifier: v.string(),
     email: v.string(),
-    isAdmin: v.optional(v.boolean()),
     lastLoginAt: v.optional(v.string()),
   }).index("by_token", ["tokenIdentifier"]),
   questions: defineTable({

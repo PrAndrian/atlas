@@ -13,8 +13,9 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as admin_migrateRoles from "../admin/migrateRoles.js";
 import type * as admin_actions from "../admin_actions.js";
-import type * as migrations_remove_total_wins from "../migrations/remove_total_wins.js";
+import type * as migrations_cleanupIsAdmin from "../migrations/cleanupIsAdmin.js";
 import type * as questions from "../questions.js";
 import type * as users from "../users.js";
 
@@ -27,8 +28,9 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "admin/migrateRoles": typeof admin_migrateRoles;
   admin_actions: typeof admin_actions;
-  "migrations/remove_total_wins": typeof migrations_remove_total_wins;
+  "migrations/cleanupIsAdmin": typeof migrations_cleanupIsAdmin;
   questions: typeof questions;
   users: typeof users;
 }>;

@@ -12,10 +12,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useAuth, UserButton } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useAuth, UserButton, useUser } from "@clerk/nextjs";
 import { Home, MessageCircleQuestion, Settings, Shield } from "lucide-react";
-import { api } from "../../convex/_generated/api";
 import { Skeleton } from "./ui/skeleton";
 
 const items = [
@@ -46,10 +44,13 @@ const footerItems = [
 ];
 
 export function AppSidebar() {
-  const auth = useAuth();
-  const isAdmin = useQuery(api.users.isAdmin);
+  const { isLoaded: isAuthLoaded } = useAuth();
+  const { user } = useUser();
 
-  if (!auth) {
+  // Check if the user has admin role directly from Clerk
+  const isAdmin = user?.publicMetadata?.role === "admin";
+
+  if (!isAuthLoaded) {
     return null;
   }
 
@@ -60,7 +61,7 @@ export function AppSidebar() {
           <SidebarMenuItem className="w-fit">
             <SidebarMenuButton asChild>
               <button className="px-1 py-2 overflow-visible">
-                {auth.isLoaded ? (
+                {isAuthLoaded ? (
                   <UserButton
                     showName
                     appearance={{

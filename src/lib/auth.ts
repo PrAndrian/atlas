@@ -1,9 +1,4 @@
 import { auth } from "@clerk/nextjs/server";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "../../convex/_generated/api";
-
-// Create a Convex HTTP client for server-side operations
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 /**
  * Check if the current user is an admin
@@ -11,18 +6,40 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
  */
 export async function checkIfUserIsAdmin() {
   try {
-    const { userId } = auth();
+    const authResult = await auth();
+    const { userId, sessionClaims } = authResult;
 
     if (!userId) {
       return false;
     }
 
-    // Query Convex directly using the isAdmin function
-    // Convex will verify using the auth session
-    const isAdmin = await convex.query(api.users.isAdmin);
-    return isAdmin === true;
+    // Check admin status directly from Clerk's metadata
+    const metadata = (sessionClaims?.metadata as { role?: string }) || {};
+    return metadata.role === "admin";
   } catch (error) {
     console.error("Error checking admin status:", error);
     return false;
+  }
+}
+
+/**
+ * Get user role from Clerk
+ * This runs server-side in a Server Component
+ */
+export async function getUserRole() {
+  try {
+    const authResult = await auth();
+    const { userId, sessionClaims } = authResult;
+
+    if (!userId) {
+      return null;
+    }
+
+    // Return the role from session claims
+    const metadata = (sessionClaims?.metadata as { role?: string }) || {};
+    return metadata.role;
+  } catch (error) {
+    console.error("Error getting user role:", error);
+    return null;
   }
 }
