@@ -2,7 +2,7 @@
 export default {
   providers: [
     {
-      domain: "https://capital-giraffe-72.clerk.accounts.dev",
+      domain: process.env.CLERK_DOMAIN,
       applicationID: "convex",
     },
   ],
