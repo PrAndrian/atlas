@@ -1,7 +1,14 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { BarChart, Home, LucideIcon, Settings, Users } from "lucide-react";
+import {
+  BarChart,
+  Home,
+  LucideIcon,
+  MessageCircleQuestion,
+  Settings,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,6 +28,11 @@ const navItems: NavItem[] = [
     title: "Manage Users",
     href: "/admin/manage-users",
     icon: Users,
+  },
+  {
+    title: "Manage Questions",
+    href: "/admin/manage-questions",
+    icon: MessageCircleQuestion,
   },
   {
     title: "Analytics",

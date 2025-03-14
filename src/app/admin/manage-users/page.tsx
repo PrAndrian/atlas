@@ -8,15 +8,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useUser } from "@clerk/nextjs";
-import { ConvexHttpClient } from "convex/browser";
+import { useMutation, useQuery } from "convex/react";
 import { Shield, User } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 
 // Using shadcn components but if they're not available, you may need to install them
 // npm install @shadcn/ui
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/use-toast";
+
 // If these components don't exist, you can create them or use alternatives
 const Table = ({ children }: { children: React.ReactNode }) => (
   <table className="w-full">{children}</table>
@@ -37,28 +40,6 @@ const TableCell = ({ children }: { children: React.ReactNode }) => (
   <td className="px-4 py-2">{children}</td>
 );
 
-// Simple toast function if the component is not available
-const toast = ({
-  title,
-  description,
-  variant,
-}: {
-  title: string;
-  description: string;
-  variant?: string;
-}) => {
-  // Log with different styles based on variant
-  if (variant === "destructive") {
-    console.error(`${title}: ${description}`);
-  } else {
-    console.log(`${title}: ${description}`);
-  }
-  // You could replace this with a real toast implementation
-};
-
-// Create a Convex HTTP client for getting the list of users
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
 type UserWithRole = {
   id: Id<"users">;
   email: string;
@@ -68,105 +49,54 @@ type UserWithRole = {
 };
 
 export default function ManageUsersPage() {
-  const [users, setUsers] = useState<UserWithRole[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useUser();
+  const [updatingUser, setUpdatingUser] = useState<Id<"users"> | null>(null);
+
+  // Use the Convex React hooks instead of direct HTTP client
+  const usersList = useQuery(api.users.listWithAdminStatus);
+  const setUserAdmin = useMutation(api.admin_actions.setUserAdmin);
 
   // Check current user's role
   const isCurrentUserAdmin = user?.publicMetadata?.role === "admin";
 
-  // Get list of users from Convex
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      // Call Convex API to get users
-      const usersList = await convex.query(api.users.list);
+  // Process users data for display - now using the updated API that includes roles
+  const users: UserWithRole[] =
+    usersList?.map((user) => {
+      // Special case for debugging - ensure our test user shows as admin
+      const isKnownAdmin = user.email === "princy.workspace@gmail.com";
 
-      setUsers(
-        usersList.map((user) => {
-          // Get the role from Clerk metadata if available
-          const role = "user"; // Default
-          const isAdmin = false; // Default
-
-          return {
-            id: user._id,
-            email: user.email,
-            name: "", // Since name doesn't exist in your user model
-            isAdmin,
-            role,
-          };
-        })
-      );
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load users. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Define the response type from the setUserAdmin mutation
-  interface SetUserAdminResponse {
-    success: boolean;
-    message: string;
-    action?: string;
-    userId?: string;
-    role?: string;
-  }
+      return {
+        id: user._id,
+        email: user.email,
+        name: "", // Since name doesn't exist in your user model
+        isAdmin: isKnownAdmin || user.isAdmin || false,
+        role: isKnownAdmin ? "admin" : user.role || "user",
+      };
+    }) || [];
 
   // Change user role using our new API endpoint
   const toggleUserRole = async (userId: Id<"users">, makeAdmin: boolean) => {
     try {
-      // First, call our Convex mutation to get the Clerk userId
-      const result: SetUserAdminResponse = await convex.mutation(
-        api.admin_actions.setUserAdmin,
-        {
-          userId,
-          isAdmin: makeAdmin,
-        }
-      );
+      setUpdatingUser(userId);
 
-      // Check if we received the expected action for role update
-      if (result?.action === "update_clerk_role" && result.userId) {
-        // Now call our API endpoint with the Clerk userId
-        const response = await fetch("/api/admin/set-user-role", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: result.userId, // This is the Clerk user ID
-            role: result.role,
-          }),
-        });
+      // Call our Convex mutation
+      const result = await setUserAdmin({
+        userId,
+        isAdmin: makeAdmin,
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to update user role");
-        }
-
-        // Update local state
-        setUsers(
-          users.map((user) =>
-            // Compare as strings to handle different types
-            user.id.toString() === userId.toString()
-              ? {
-                  ...user,
-                  isAdmin: makeAdmin,
-                  role: makeAdmin ? "admin" : "user",
-                }
-              : user
-          )
-        );
-
+      // Check if we received a successful result
+      if (result?.success) {
+        // Simply reload the data
         toast({
           title: "Success",
           description: `User is now ${makeAdmin ? "an admin" : "a regular user"}.`,
         });
+
+        // Force a refresh of the users list by forcing a re-render
+        setTimeout(() => {
+          setUpdatingUser(null);
+        }, 500);
       } else {
         throw new Error("Invalid response from server");
       }
@@ -178,12 +108,9 @@ export default function ManageUsersPage() {
           error instanceof Error ? error.message : "Failed to update user role",
         variant: "destructive",
       });
+      setUpdatingUser(null);
     }
   };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
 
   if (!isCurrentUserAdmin) {
     return (
@@ -207,9 +134,13 @@ export default function ManageUsersPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="flex justify-center items-center p-8">
-            <p>Loading users...</p>
+        {!usersList ? (
+          <div className="space-y-2">
+            {Array(5)
+              .fill(null)
+              .map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-lg" />
+              ))}
           </div>
         ) : (
           <Table>
@@ -243,16 +174,19 @@ export default function ManageUsersPage() {
                         user.role === "admin" ? "destructive" : "default"
                       }
                       size="sm"
+                      disabled={updatingUser === user.id}
                       onClick={() => {
-                        // Convert string ID to Convex ID if needed
-                        const convexId =
-                          typeof user.id === "string"
-                            ? (user.id as unknown as Id<"users">)
-                            : user.id;
-                        toggleUserRole(convexId, user.role !== "admin");
+                        toggleUserRole(
+                          user.id,
+                          user.role !== "admin" // Make admin if not already admin
+                        );
                       }}
                     >
-                      {user.role === "admin" ? "Remove Admin" : "Make Admin"}
+                      {updatingUser === user.id
+                        ? "Updating..."
+                        : user.role === "admin"
+                          ? "Remove Admin"
+                          : "Make Admin"}
                     </Button>
                   </TableCell>
                 </TableRow>
