@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as admin_actions from "../admin_actions.js";
+import type * as migrations_remove_total_wins from "../migrations/remove_total_wins.js";
 import type * as questions from "../questions.js";
 import type * as users from "../users.js";
 
@@ -27,6 +28,7 @@ import type * as users from "../users.js";
  */
 declare const fullApi: ApiFromModules<{
   admin_actions: typeof admin_actions;
+  "migrations/remove_total_wins": typeof migrations_remove_total_wins;
   questions: typeof questions;
   users: typeof users;
 }>;

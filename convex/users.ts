@@ -19,16 +19,31 @@ export const store = mutation({
       return user._id;
     }
 
-    // Add admin check based on email domain or specific emails
-    const isAdmin = userIdentity.email?.endsWith("@admin.com") || false;
+    // Get admin status from Clerk metadata
+    const isAdmin =
+      (userIdentity.privateMetadata as { isAdmin?: boolean })?.isAdmin === true;
 
-    const userId = await ctx.db.insert("users", {
+    return await ctx.db.insert("users", {
       tokenIdentifier: userIdentity.tokenIdentifier,
       email: userIdentity.email!,
+      lastLoginAt: new Date().toISOString(),
       isAdmin,
     });
+  },
+});
 
-    return userId;
+export const getUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    return await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
   },
 });
 
@@ -49,6 +64,7 @@ export const isAdmin = query({
   },
 });
 
+// Admin-only functions
 export const list = query({
   args: {},
   handler: async (ctx) => {
